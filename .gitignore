@@ -1,0 +1,21 @@
+# Source workbooks kept in the project folder. The one the app loads on first
+# launch is public/scheda-2.xlsx.
+/*.xlsx
+/*.xlsm
+
+node_modules
+dist
+dist-ssr
+*.local
+.vite
+.DS_Store
+Thumbs.db
+.env
+.env.*
+!.env.example
+android/
+ios/
+.idea
+.vscode/*
+!.vscode/extensions.json
+*.log
