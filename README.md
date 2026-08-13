@@ -64,4 +64,16 @@ To check a new file before importing it: `node scripts/parse-check.mjs "my-sched
 
 ## Android app
 
-The web app is the same app: installed from the browser it behaves like a native one. For a real APK the project is ready for Capacitor, see `CLAUDE.md` for the steps.
+There is a real Android app, same code wrapped with Capacitor.
+
+Download `scheda-palestra.apk` from the [latest release](https://github.com/RickNewere/scheda-palestra/releases/latest), open it on the phone and allow the install from unknown sources when Android asks. It works completely offline and keeps its own data, separate from the browser version.
+
+To build it yourself:
+
+```bash
+npm run build
+npx cap sync android
+cd android && ./gradlew assembleRelease
+```
+
+It needs JDK 21 and the Android SDK (platform 36). The APK comes out in `android/app/build/outputs/apk/release`.

@@ -58,12 +58,22 @@ public/                manifest, icons, sw.js, scheda-2.xlsx (seed loaded on fir
 
 Push on `main` triggers `.github/workflows/deploy.yml` which builds and publishes to GitHub Pages. `base: './'` in `vite.config.ts` is what makes the subpath work, do not set an absolute base.
 
-## Android (Capacitor), not set up yet
+## Android (Capacitor 8)
+
+The native project lives in `android/` and is tracked. App id `com.ricknewere.schedapalestra`.
 
 ```bash
-npm i -D @capacitor/cli && npm i @capacitor/core @capacitor/android
-npx cap init "Scheda Palestra" com.ricknewere.schedapalestra --web-dir=dist
-npm run build && npx cap add android && npx cap open android
+npm run build
+npx cap sync android
+cd android && ./gradlew assembleRelease      # apk in app/build/outputs/apk/release
 ```
 
-Needs Android Studio and a JDK. The wake lock, vibration and audio used during a workout are standard web APIs and work inside the WebView.
+Toolchain this was built with: **JDK 21** (Capacitor 8 compiles with source release 21, JDK 17 fails), Android SDK platform 36, build tools 36. On this machine the JDK sits in `~/.jdks/jdk-21.0.12+8` and the SDK path is written in `android/local.properties`; export `JAVA_HOME` and `ANDROID_HOME` before calling gradle.
+
+Signing: `android/keystore/release.jks` plus `android/keystore.properties`, both untracked. `app/build.gradle` picks them up when present, otherwise the release build stays unsigned. Losing that keystore means the phone will refuse the next update, it has to be backed up.
+
+Icons and splash come from `scripts/make-android-icons.py`, no `@capacitor/assets` involved.
+
+The web build registers no service worker when `window.Capacitor` is there: inside the app the assets are already local.
+
+`.github/workflows/android.yml` builds the APK on a `v*` tag and attaches it to the release, signing it when the repo secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEY_ALIAS` are set.

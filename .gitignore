@@ -13,8 +13,15 @@ Thumbs.db
 .env
 .env.*
 !.env.example
-android/
+
+# The Android project is tracked, its own .gitignore covers the build output.
 ios/
+*.apk
+*.aab
+*.keystore
+*.jks
+android/keystore/
+android/keystore.properties
 .idea
 .vscode/*
 !.vscode/extensions.json
