@@ -72,6 +72,8 @@ export interface Session {
   dayLabel: string
   startedAt: number
   endedAt: number | null
+  /** Last time something was written into the session. */
+  updatedAt?: number
   logs: Record<string, ExerciseLog>
   /** Snapshot of exercise names, so history survives a re-import. */
   names: Record<string, string>

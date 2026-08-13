@@ -1,6 +1,6 @@
 /** Schede management, preferences and backup. */
 import { useRef, useState } from 'react'
-import { IconCheck, IconEdit, IconPlus, IconTrash } from '../components/icons'
+import { IconCheck, IconEdit, IconPlus, IconTrash, IconUpload } from '../components/icons'
 import { useApp } from '../lib/store'
 import { navigate } from '../lib/router'
 import { dayLabel } from '../lib/format'
@@ -85,25 +85,35 @@ export default function SettingsView() {
               )}
             </button>
             {s.id === activeScheda?.id && <IconCheck size={18} className="" />}
-            <button
-              className="icon-btn ghost"
-              onClick={() => {
-                const name = prompt('Nome della scheda', s.name)
-                if (name?.trim()) void renameScheda(s.id, name.trim())
-              }}
-              aria-label="Rinomina"
-            >
-              <IconEdit size={17} />
-            </button>
-            <button
-              className="icon-btn ghost"
-              onClick={() => {
-                if (confirm(`Eliminare "${s.name}"? Lo storico resta salvato.`)) void deleteScheda(s.id)
-              }}
-              aria-label="Elimina"
-            >
-              <IconTrash size={17} />
-            </button>
+            <div className="col" style={{ gap: 4 }}>
+              <button
+                className="icon-btn ghost"
+                onClick={() => navigate(`/import/${s.id}`)}
+                aria-label="Aggiorna da file"
+                title="Aggiorna da file"
+              >
+                <IconUpload size={17} />
+              </button>
+              <button
+                className="icon-btn ghost"
+                onClick={() => {
+                  const name = prompt('Nome della scheda', s.name)
+                  if (name?.trim()) void renameScheda(s.id, name.trim())
+                }}
+                aria-label="Rinomina"
+              >
+                <IconEdit size={17} />
+              </button>
+              <button
+                className="icon-btn ghost"
+                onClick={() => {
+                  if (confirm(`Eliminare "${s.name}"? Lo storico resta salvato.`)) void deleteScheda(s.id)
+                }}
+                aria-label="Elimina"
+              >
+                <IconTrash size={17} />
+              </button>
+            </div>
           </div>
         ))}
         {!schede.length && (

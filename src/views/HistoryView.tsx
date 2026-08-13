@@ -3,14 +3,16 @@ import { useState } from 'react'
 import Sheet from '../components/Sheet'
 import { IconChevron, IconTrash } from '../components/icons'
 import { useApp } from '../lib/store'
+import { navigate } from '../lib/router'
 import { dayLabel, fullDate, hourMinute, minutesLabel, num, volumeLabel } from '../lib/format'
-import { sessionDuration, sessionSetsDone, sessionVolume } from '../lib/stats'
-import type { Session } from '../types'
+import { isTracked, sessionDuration, sessionSetsDone, sessionVolume } from '../lib/stats'
 
 export default function HistoryView() {
   const { sessions, deleteSession } = useApp()
-  const [open, setOpen] = useState<Session | null>(null)
-  const done = sessions.filter((s) => s.done)
+  const [openId, setOpenId] = useState<string | null>(null)
+  // An open session with sets already ticked belongs to the history too.
+  const done = sessions.filter(isTracked)
+  const open = done.find((s) => s.id === openId) || null
 
   if (!done.length) {
     return (
@@ -25,9 +27,17 @@ export default function HistoryView() {
     <div className="fade-in">
       <div className="list">
         {done.map((s) => (
-          <button key={s.id} className="tile" onClick={() => setOpen(s)}>
+          <button
+            key={s.id}
+            className="tile"
+            style={s.done ? undefined : { borderColor: 'var(--accent)' }}
+            onClick={() => setOpenId(s.id)}
+          >
             <div className="col grow">
-              <strong className="truncate">{s.dayTitle}</strong>
+              <div className="row" style={{ gap: 6 }}>
+                <strong className="truncate">{s.dayTitle}</strong>
+                {!s.done && <span className="chip accent tiny">in corso</span>}
+              </div>
               <span className="tiny muted">
                 {dayLabel(s.startedAt)} · {hourMinute(s.startedAt)} · {s.schedaName}
               </span>
@@ -42,7 +52,7 @@ export default function HistoryView() {
         ))}
       </div>
 
-      <Sheet open={!!open} onClose={() => setOpen(null)}>
+      <Sheet open={!!open} onClose={() => setOpenId(null)}>
         {open && (
           <div className="col" style={{ gap: 14 }}>
             <div className="col">
@@ -51,6 +61,15 @@ export default function HistoryView() {
                 {fullDate(open.startedAt)} · {hourMinute(open.startedAt)}
               </span>
             </div>
+
+            {!open.done && (
+              <div className="banner ok row between">
+                <span>Allenamento ancora aperto, i carichi sono salvati.</span>
+                <button className="btn slim" onClick={() => navigate('/workout')}>
+                  Riprendi
+                </button>
+              </div>
+            )}
 
             <div className="stat-grid">
               <div className="stat">
@@ -92,7 +111,7 @@ export default function HistoryView() {
               onClick={async () => {
                 if (!confirm('Eliminare questo allenamento?')) return
                 await deleteSession(open.id)
-                setOpen(null)
+                setOpenId(null)
               }}
             >
               <IconTrash size={17} /> Elimina allenamento

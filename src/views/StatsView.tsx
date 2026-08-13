@@ -5,7 +5,7 @@ import Chart from '../components/Chart'
 import { useApp } from '../lib/store'
 import { muscleColor } from '../lib/exerciseMeta'
 import { dayLabel, num, shortDate, volumeLabel } from '../lib/format'
-import { exerciseHistory, muscleBreakdown, normalizeName, personalRecord, sessionSetsDone, sessionVolume, weeklyStats } from '../lib/stats'
+import { exerciseHistory, isTracked, muscleBreakdown, normalizeName, personalRecord, sessionSetsDone, sessionVolume, weeklyStats } from '../lib/stats'
 import type { Exercise } from '../types'
 
 type Metric = 'volume' | 'sessions' | 'sets'
@@ -15,7 +15,7 @@ export default function StatsView() {
   const [metric, setMetric] = useState<Metric>('volume')
   const [openExercise, setOpenExercise] = useState<string | null>(null)
 
-  const done = sessions.filter((s) => s.done)
+  const done = sessions.filter(isTracked)
   const weeks = useMemo(() => weeklyStats(done, 8), [done])
 
   const exercisesByName = useMemo(() => {
@@ -160,7 +160,7 @@ export default function StatsView() {
 
 function ExercisePanel({ name }: { name: string }) {
   const { sessions } = useApp()
-  const done = sessions.filter((s) => s.done)
+  const done = sessions.filter(isTracked)
   const history = exerciseHistory(done, name)
   const record = personalRecord(done, name)
 

@@ -44,6 +44,10 @@ public/                manifest, icons, sw.js, scheda-2.xlsx (seed loaded on fir
 ## Rules that matter here
 
 - Sessions key their history on the **exercise name**, not the id: re-importing a scheda must not lose past loads. Same for days, matched on the title.
+- A session counts as training done as soon as one set is ticked (`isTracked` in `stats.ts`), whether it was closed or not. History, home and stats all filter with it, never with `done` alone. Sessions with nothing ticked are dropped instead of leaving empty rows.
+- An open session is closed, never deleted: on launch when older than `STALE_SESSION_MS`, and when another workout is started. `updatedAt` is written on every save and doubles as `endedAt` for auto closed sessions.
+- Import is two steps: `prepareImport` parses and looks for a scheda that the file updates (same source file or same name), `commitImport` writes it as a new plan or over the existing one. Replacing keeps id, name and the exercises marked `custom`, closes sessions open on that scheda and prunes the pictures nobody points at.
+- Picture ids are prefixed per import: media paths repeat across workbooks, without the prefix a second scheda would overwrite the pictures of the first.
 - The parser must stay tolerant: unknown layouts return warnings, never a crash. Every value it guesses (name, sets, note, picture) is editable in the UI.
 - Pictures are paired with the column the drawing is centred on, computed from the column widths in EMU. One column, one picture, first come first served.
 - Only one session can be open at a time, and it is written to IndexedDB on every change so a reload resumes it.

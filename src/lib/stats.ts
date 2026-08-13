@@ -19,6 +19,20 @@ export function setVolume(s: SetLog): number {
   return w * r
 }
 
+/** True as soon as one set has been ticked. */
+export function hasProgress(session: Session): boolean {
+  return Object.values(session.logs).some((log) => log.sets.some((s) => s.done))
+}
+
+/**
+ * Sessions that count as training done: the finished ones plus any session
+ * still open where at least one set was completed. Closing the app halfway
+ * through must not lose what was already logged.
+ */
+export function isTracked(session: Session): boolean {
+  return session.done || hasProgress(session)
+}
+
 export function sessionVolume(session: Session): number {
   let total = 0
   for (const log of Object.values(session.logs)) {
@@ -34,8 +48,9 @@ export function sessionSetsDone(session: Session): number {
 }
 
 export function sessionDuration(session: Session): number {
-  if (!session.endedAt) return 0
-  return Math.max(0, session.endedAt - session.startedAt)
+  const end = session.endedAt ?? session.updatedAt ?? 0
+  if (!end) return 0
+  return Math.max(0, end - session.startedAt)
 }
 
 /** Epley formula, only meaningful for reps between 1 and 12. */
@@ -153,7 +168,7 @@ export function weeklyStats(sessions: Session[], weeks = 8): WeekStat[] {
   for (let i = weeks - 1; i >= 0; i--) {
     const weekStart = now - i * 7 * 86400000
     const weekEnd = weekStart + 7 * 86400000
-    const inWeek = sessions.filter((s) => s.startedAt >= weekStart && s.startedAt < weekEnd && s.done)
+    const inWeek = sessions.filter((s) => s.startedAt >= weekStart && s.startedAt < weekEnd && isTracked(s))
     out.push({
       weekStart,
       sessions: inWeek.length,
@@ -183,7 +198,7 @@ export function muscleBreakdown(sessions: Session[], exercisesByName: Map<string
 
 export function streak(sessions: Session[]): number {
   const days = new Set(
-    sessions.filter((s) => s.done).map((s) => new Date(s.startedAt).toDateString()),
+    sessions.filter(isTracked).map((s) => new Date(s.startedAt).toDateString()),
   )
   let count = 0
   const cursor = new Date()

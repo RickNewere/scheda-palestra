@@ -4,23 +4,23 @@ import { useApp } from '../lib/store'
 import { IconChevron, IconFlame, IconPlay } from '../components/icons'
 import { muscleColor } from '../lib/exerciseMeta'
 import { dayLabel, volumeLabel } from '../lib/format'
-import { normalizeName, sessionVolume, startOfWeek, streak } from '../lib/stats'
+import { isTracked, normalizeName, sessionVolume, startOfWeek, streak } from '../lib/stats'
 import type { Day, Session } from '../types'
 import { navigate } from '../lib/router'
 
 /** Matches on the day title too, so history survives a re-import of the scheda. */
 export function lastSessionForDay(sessions: Session[], day: Day): Session | null {
   const title = normalizeName(day.title)
-  const matches = sessions.filter((s) => s.done && (s.dayId === day.id || normalizeName(s.dayTitle) === title))
+  const matches = sessions.filter((s) => isTracked(s) && (s.dayId === day.id || normalizeName(s.dayTitle) === title))
   return matches.length ? matches.reduce((a, b) => (a.startedAt > b.startedAt ? a : b)) : null
 }
 
 export default function HomeView() {
-  const { activeScheda, sessions, activeSession, schede } = useApp()
+  const { activeScheda, sessions, activeSession, schede, setActiveScheda } = useApp()
 
   const weekSessions = useMemo(() => {
     const from = startOfWeek(Date.now())
-    return sessions.filter((s) => s.done && s.startedAt >= from)
+    return sessions.filter((s) => isTracked(s) && s.startedAt >= from)
   }, [sessions])
 
   const weekVolume = weekSessions.reduce((acc, s) => acc + sessionVolume(s), 0)
@@ -84,13 +84,30 @@ export default function HomeView() {
         </div>
       </div>
 
+      {schede.length > 1 && (
+        <>
+          <div className="section-title">
+            <span>Scheda attiva</span>
+            <button className="tiny" style={{ color: 'var(--accent)' }} onClick={() => navigate('/import')}>
+              importa
+            </button>
+          </div>
+          <div className="chips">
+            {schede.map((s) => (
+              <button
+                key={s.id}
+                className={`chip ${s.id === activeScheda.id ? 'accent' : ''}`}
+                onClick={() => void setActiveScheda(s.id)}
+              >
+                {s.name}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
       <div className="section-title">
         <span>Giorni</span>
-        {schede.length > 1 && (
-          <button className="tiny" style={{ color: 'var(--accent)' }} onClick={() => navigate('/settings')}>
-            cambia scheda
-          </button>
-        )}
       </div>
 
       <div className="list">

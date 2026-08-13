@@ -15,15 +15,63 @@ import {
   saveSettings,
   wipeAll,
 } from './db'
-import { applyVariant, parseWorkbookToScheda, uid } from './parser'
+import { applyVariant, parseWorkbookToScheda, uid, type ParsedImage } from './parser'
 import { parseScheme } from './scheme'
 import { metaFor } from './exerciseMeta'
-import { suggestedSets } from './stats'
+import { hasProgress, normalizeName, suggestedSets } from './stats'
 import type { Day, Exercise, Scheda, Session, Settings, StoredImage } from '../types'
 
-interface ImportOutcome {
+/** An open session older than this is closed on its own on the next launch. */
+const STALE_SESSION_MS = 6 * 60 * 60 * 1000
+
+/** Closes an open session keeping what was logged, or drops it when empty. */
+async function settleOpenSession(session: Session): Promise<Session | null> {
+  if (!hasProgress(session)) {
+    await remove(STORE_SESSIONS, session.id)
+    return null
+  }
+  const closed: Session = {
+    ...session,
+    done: true,
+    endedAt: session.endedAt ?? session.updatedAt ?? Date.now(),
+  }
+  await put(STORE_SESSIONS, closed)
+  return closed
+}
+
+/** A parsed workbook waiting for the user to confirm how to file it. */
+export interface ImportCandidate {
   scheda: Scheda
+  images: ParsedImage[]
   warnings: string[]
+  /** Scheda already in the app that this file looks like an update of. */
+  duplicate: Scheda | null
+}
+
+/** Keeps the exercises added by hand when a scheda is re-imported. */
+function carryCustomExercises(oldDays: Day[], newDays: Day[]): Day[] {
+  return newDays.map((day) => {
+    const previous =
+      oldDays.find((d) => normalizeName(d.title) === normalizeName(day.title)) ||
+      oldDays.find((d) => d.index === day.index)
+    const customs = previous ? previous.exercises.filter((e) => e.custom) : []
+    if (!customs.length) return day
+    return {
+      ...day,
+      exercises: [...day.exercises, ...customs.map((e, i) => ({ ...e, order: day.exercises.length + i }))],
+    }
+  })
+}
+
+/** Drops the pictures no scheda points at any more. */
+async function pruneImages(schede: Scheda[]): Promise<void> {
+  const used = new Set(
+    schede.flatMap((s) => s.days.flatMap((d) => d.exercises.map((e) => e.imageId).filter(Boolean) as string[])),
+  )
+  const stored = await loadImages()
+  for (const img of stored) {
+    if (!used.has(img.id)) await remove(STORE_IMAGES, img.id)
+  }
 }
 
 interface AppApi {
@@ -34,7 +82,8 @@ interface AppApi {
   activeScheda: Scheda | null
   activeSession: Session | null
   imageUrl: (id: string | null) => string | null
-  importFile: (file: File) => Promise<ImportOutcome>
+  prepareImport: (file: File) => Promise<ImportCandidate>
+  commitImport: (candidate: ImportCandidate, replaceId?: string) => Promise<Scheda>
   setActiveScheda: (id: string) => Promise<void>
   renameScheda: (id: string, name: string) => Promise<void>
   deleteScheda: (id: string) => Promise<void>
@@ -125,8 +174,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
         await saveSettings(nextSettings)
       }
 
+      // An old session left open (app closed mid workout) is closed here so it
+      // lands in the history instead of hanging around as "in corso".
+      const settled: Session[] = []
+      for (const session of storedSessions) {
+        const age = Date.now() - (session.updatedAt ?? session.startedAt)
+        if (session.done || age < STALE_SESSION_MS) {
+          settled.push(session)
+          continue
+        }
+        const closed = await settleOpenSession(session)
+        if (closed) settled.push(closed)
+      }
+
       setSchede(nextSchede)
-      setSessions(storedSessions.sort((a, b) => b.startedAt - a.startedAt))
+      setSessions(settled.sort((a, b) => b.startedAt - a.startedAt))
       setSettings(nextSettings)
       setReady(true)
     })()
@@ -167,17 +229,69 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     imageUrl: (id) => (id ? urls.current.get(id) || null : null),
 
-    async importFile(file) {
+    async prepareImport(file) {
       const buffer = await file.arrayBuffer()
       const parsed = parseWorkbookToScheda(buffer, file.name)
-      const stored = await persistImages(parsed.images)
+      const sameFile = schede.find((s) => s.sourceFile.toLowerCase() === file.name.toLowerCase())
+      const sameName = schede.find((s) => normalizeName(s.name) === normalizeName(parsed.scheda.name))
+      return {
+        scheda: parsed.scheda,
+        images: parsed.images,
+        warnings: parsed.warnings,
+        duplicate: sameFile || sameName || null,
+      }
+    },
+
+    async commitImport(candidate, replaceId) {
+      const stored = await persistImages(candidate.images)
       registerImages(stored)
-      await put(STORE_SCHEDE, parsed.scheda)
-      setSchede((prev) => [...prev, parsed.scheda])
-      const next = { ...settings, activeSchedaId: parsed.scheda.id, seeded: true }
+
+      const previous = replaceId ? schede.find((s) => s.id === replaceId) : undefined
+      let saved = candidate.scheda
+      const closedSessions: Session[] = []
+      const droppedSessionIds: string[] = []
+
+      if (previous) {
+        // Replacing the plan: sessions still open on it are closed first, so the
+        // loads already logged land in the history before the days change.
+        for (const open of sessions.filter((s) => !s.done && s.schedaId === previous.id)) {
+          const closed = await settleOpenSession(open)
+          if (closed) closedSessions.push(closed)
+          else droppedSessionIds.push(open.id)
+        }
+        saved = {
+          ...candidate.scheda,
+          id: previous.id,
+          name: previous.name,
+          importedAt: Date.now(),
+          variant: candidate.scheda.variants.includes(previous.variant)
+            ? previous.variant
+            : candidate.scheda.variant,
+          days: carryCustomExercises(previous.days, candidate.scheda.days),
+        }
+        if (saved.variant !== candidate.scheda.variant) saved = applyVariant(saved, saved.variant)
+      }
+
+      await put(STORE_SCHEDE, saved)
+      const nextSchede = previous
+        ? schede.map((s) => (s.id === saved.id ? saved : s))
+        : [...schede, saved]
+      setSchede(nextSchede)
+
+      if (closedSessions.length || droppedSessionIds.length) {
+        setSessions((prev) =>
+          prev
+            .filter((s) => !droppedSessionIds.includes(s.id))
+            .map((s) => closedSessions.find((c) => c.id === s.id) || s)
+            .sort((a, b) => b.startedAt - a.startedAt),
+        )
+      }
+
+      await pruneImages(nextSchede)
+      const next = { ...settings, activeSchedaId: saved.id, seeded: true }
       await saveSettings(next)
       setSettings(next)
-      return { scheda: parsed.scheda, warnings: parsed.warnings }
+      return saved
     },
 
     async setActiveScheda(id) {
@@ -280,8 +394,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
 
     async startSession(scheda, day) {
-      // Only one session can be open at a time.
-      for (const open of sessions.filter((s) => !s.done)) await remove(STORE_SESSIONS, open.id)
+      // Only one session can be open at a time: any previous one is closed
+      // with the loads already logged, never thrown away.
+      const settledOpen: Session[] = []
+      for (const open of sessions.filter((s) => !s.done)) {
+        const closed = await settleOpenSession(open)
+        if (closed) settledOpen.push(closed)
+      }
       const session: Session = {
         id: uid('ses'),
         schedaId: scheda.id,
@@ -291,6 +410,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dayLabel: day.label,
         startedAt: Date.now(),
         endedAt: null,
+        updatedAt: Date.now(),
         logs: {},
         names: {},
         done: false,
@@ -300,19 +420,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
         session.names[ex.id] = ex.name
       }
       await put(STORE_SESSIONS, session)
-      setSessions((prev) => [session, ...prev.filter((s) => s.done)])
+      setSessions((prev) => {
+        const closedIds = new Set(settledOpen.map((c) => c.id))
+        const rest = prev.filter((s) => s.done && !closedIds.has(s.id))
+        return [session, ...settledOpen, ...rest].sort((a, b) => b.startedAt - a.startedAt)
+      })
       return session
     },
 
     async saveSession(session) {
-      await put(STORE_SESSIONS, session)
+      const stamped: Session = { ...session, updatedAt: Date.now() }
+      await put(STORE_SESSIONS, stamped)
       setSessions((prev) => {
-        const rest = prev.filter((s) => s.id !== session.id)
-        return [session, ...rest].sort((a, b) => b.startedAt - a.startedAt)
+        const rest = prev.filter((s) => s.id !== stamped.id)
+        return [stamped, ...rest].sort((a, b) => b.startedAt - a.startedAt)
       })
     },
 
     async finishSession(session) {
+      // Nothing was logged: no point keeping an empty entry in the history.
+      if (!hasProgress(session)) {
+        await api.deleteSession(session.id)
+        return
+      }
       const done: Session = { ...session, done: true, endedAt: Date.now() }
       await api.saveSession(done)
     },

@@ -207,6 +207,10 @@ export function parseWorkbookToScheda(buffer: ArrayBuffer, fileName: string): Pa
   const images: ParsedImage[] = []
   const usedImages = new Set<string>()
 
+  // Media paths repeat across workbooks (xl/media/image1.png), so every import
+  // gets its own prefix: two schede never overwrite each other's pictures.
+  const token = uid('img')
+
   for (const sheet of wb.sheets) {
     const blocks = findDayBlocks(sheet)
     if (!blocks.length) continue
@@ -216,11 +220,17 @@ export function parseWorkbookToScheda(buffer: ArrayBuffer, fileName: string): Pa
       if (!day) return
       days.push(day)
       for (const ex of day.exercises) {
-        if (!ex.imageId || usedImages.has(ex.imageId)) continue
+        if (!ex.imageId) continue
         const pic = sheet.pictures.find((p) => p.id === ex.imageId)
-        if (pic) {
-          usedImages.add(pic.id)
-          images.push({ id: pic.id, mime: pic.mime, data: pic.data })
+        if (!pic) {
+          ex.imageId = null
+          continue
+        }
+        const id = `${token}_${pic.id}`
+        ex.imageId = id
+        if (!usedImages.has(id)) {
+          usedImages.add(id)
+          images.push({ id, mime: pic.mime, data: pic.data })
         }
       }
     })

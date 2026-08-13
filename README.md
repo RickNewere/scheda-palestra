@@ -18,11 +18,14 @@ Each exercise shows the picture taken from your file plus a drawn animation of t
 **Workout mode**
 One exercise at a time, with weight and reps entered through big steppers. Tick a set and the rest timer starts on its own with a beep and a vibration when it is over. Timed work like `10 min` cardio or `3x30sec` gets a countdown instead of reps. The loads of your last session are prefilled, so you always know what to beat.
 
+**Nothing gets lost**
+A set counts the moment you tick it. Leave the workout, close the app or start another day and what you logged is already in your history, marked as still open so you can pick it up later. A session left open is closed on its own after a few hours.
+
 **Progress**
-Every session is saved: history with loads and volume, personal records, estimated 1RM, load progression charts per exercise, weekly volume and how your sets are spread across muscle groups.
+History with loads and volume, personal records, estimated 1RM, load progression charts per exercise, weekly volume and how your sets are spread across muscle groups.
 
 **Multiple schede**
-Import as many plans as you like and switch between them. History follows the exercise name, so re-importing an updated file keeps your past loads. You can also rename exercises, change sets and reps, reorder or add exercises that are not in the file.
+Import as many plans as you like and switch between them from the home screen. Importing a file that matches a plan you already have offers to update it: the days are rebuilt from the new file while history, records and the exercises you added by hand stay where they are. History follows the exercise name, so past loads survive any update. You can also rename exercises, change sets and reps, reorder them or add exercises that are not in the file.
 
 **Yours only**
 No account, no server. Everything lives in the browser storage of your device and you can export a full backup to a file whenever you want.

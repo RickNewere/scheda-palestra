@@ -332,8 +332,11 @@ export default function WorkoutView({ session, scheda }: Props) {
       </div>
 
       <button className="btn block" style={{ marginTop: 10 }} onClick={() => setShowFinish(true)}>
-        Chiudi allenamento
+        Termina allenamento
       </button>
+      <p className="tiny muted" style={{ textAlign: 'center', marginTop: 8 }}>
+        I carichi si salvano da soli: puoi uscire e riprendere quando vuoi.
+      </p>
 
       <div style={{ height: 80 }} />
 
@@ -408,6 +411,11 @@ export default function WorkoutView({ session, scheda }: Props) {
               <span className="label">durata</span>
             </div>
           </div>
+          {doneSets === 0 && (
+            <div className="banner warn">
+              Nessuna serie spuntata: vengono registrate solo le serie con la spunta verde.
+            </div>
+          )}
           <button
             className="btn primary block"
             onClick={async () => {
@@ -416,15 +424,27 @@ export default function WorkoutView({ session, scheda }: Props) {
               navigate('/')
             }}
           >
-            <IconCheck size={18} /> Salva allenamento
+            <IconCheck size={18} /> Chiudi e salva nello storico
           </button>
           <button className="btn block" onClick={() => setShowFinish(false)}>
             Continua ad allenarti
           </button>
           <button
+            className="btn block"
+            onClick={() => {
+              setShowFinish(false)
+              navigate('/')
+            }}
+          >
+            Esci e riprendi dopo
+          </button>
+          <p className="tiny muted" style={{ textAlign: 'center' }}>
+            Le serie completate sono già nello storico, anche se esci ora.
+          </p>
+          <button
             className="btn danger block"
             onClick={async () => {
-              if (!confirm('Eliminare questa sessione senza salvarla?')) return
+              if (!confirm('Eliminare questa sessione e i carichi inseriti?')) return
               await deleteSession(session.id)
               navigate('/')
             }}

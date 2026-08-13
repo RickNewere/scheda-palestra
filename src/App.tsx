@@ -39,7 +39,7 @@ function Shell() {
     history: 'Storico',
     stats: 'Progressi',
     settings: 'Impostazioni',
-    import: 'Importa scheda',
+    import: segments[1] ? 'Aggiorna scheda' : 'Importa scheda',
     workout: activeSession?.dayTitle || 'Allenamento',
     day: day?.day.title || 'Giorno',
   }
@@ -83,7 +83,7 @@ function Shell() {
         {root === 'history' && <HistoryView />}
         {root === 'stats' && <StatsView />}
         {root === 'settings' && <SettingsView />}
-        {root === 'import' && <ImportView />}
+        {root === 'import' && <ImportView targetId={segments[1]} />}
         {root === 'anim' && import.meta.env.DEV && <AnimationGallery />}
       </main>
 
