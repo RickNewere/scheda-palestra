@@ -78,4 +78,6 @@ The web build registers no service worker when `window.Capacitor` is there: insi
 
 `MainActivity` adds an `OnBackPressedCallback`: Capacitor 8 ships no back button handling, so without it the hardware back would close the app instead of walking the hash history.
 
-`.github/workflows/android.yml` builds the APK on a `v*` tag and attaches it to the release, signing it when the repo secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEY_ALIAS` are set.
+`.github/workflows/android.yml` builds the APK on a `v*` tag and attaches it to the release, signing it when the repo secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEY_ALIAS` are set (they are). It runs `npx cap sync` first because the cordova plugins folder is not tracked, and needs Node 22 for the Capacitor CLI.
+
+Version: `versionCode` and `versionName` come from `-PversionCode` / `-PversionName`, filled by CI with the run number and the tag. A local build without them stays at 1 / 1.0, so pass them by hand when building an APK meant to replace an installed one.

@@ -16,8 +16,10 @@ android {
         applicationId "com.ricknewere.schedapalestra"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // CI passes -PversionCode and -PversionName from the tag, a local build
+        // keeps the defaults.
+        versionCode project.hasProperty('versionCode') ? project.versionCode.toInteger() : 1
+        versionName project.hasProperty('versionName') ? project.versionName : "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
