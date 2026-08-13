@@ -24,6 +24,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # Copies dist into the native project and regenerates the pieces that
+      # are not tracked (cordova plugins folder, capacitor config).
+      - run: npx cap sync android
 
       - uses: actions/setup-java@v4
         with:
