@@ -76,4 +76,6 @@ Icons and splash come from `scripts/make-android-icons.py`, no `@capacitor/asset
 
 The web build registers no service worker when `window.Capacitor` is there: inside the app the assets are already local.
 
+`MainActivity` adds an `OnBackPressedCallback`: Capacitor 8 ships no back button handling, so without it the hardware back would close the app instead of walking the hash history.
+
 `.github/workflows/android.yml` builds the APK on a `v*` tag and attaches it to the release, signing it when the repo secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEY_ALIAS` are set.
