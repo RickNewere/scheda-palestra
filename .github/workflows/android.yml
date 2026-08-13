@@ -35,13 +35,17 @@ jobs:
         if: env.KEYSTORE_BASE64 != ''
         run: |
           mkdir -p android/keystore
-          echo "$KEYSTORE_BASE64" | base64 -d > android/keystore/release.jks
+          # The secret may carry CRLF from a Windows shell, base64 -d chokes on it.
+          printf '%s' "$KEYSTORE_BASE64" | tr -d '\r\n ' | base64 -d > android/keystore/release.jks
+          password=$(printf '%s' "$KEYSTORE_PASSWORD" | tr -d '\r\n')
+          alias=$(printf '%s' "$KEY_ALIAS" | tr -d '\r\n')
           cat > android/keystore.properties <<EOF
           storeFile=keystore/release.jks
-          storePassword=$KEYSTORE_PASSWORD
-          keyAlias=$KEY_ALIAS
-          keyPassword=$KEYSTORE_PASSWORD
+          storePassword=$password
+          keyAlias=$alias
+          keyPassword=$password
           EOF
+          keytool -list -keystore android/keystore/release.jks -storepass "$password" >/dev/null && echo "keystore ok"
 
       - name: Build APK
         working-directory: android
